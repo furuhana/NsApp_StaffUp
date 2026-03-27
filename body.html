@@ -1,0 +1,27 @@
+
+
+    <div class="export-canvas" id="exportCanvas">
+        <div class="card-base" id="layer1">
+            <div class="photo-container" onclick="document.getElementById('imageInput').click()">
+                <img src="https://via.placeholder.com/246x246.png?text=Click+to+Upload" alt="头像" class="photo-image"
+                    id="avatarImage">
+            </div>
+
+            <div class="text-layer" id="layer3">
+                <div class="text-element name-text" contenteditable="true" id="nameText"
+                    style="transform: translate(0px, -8px) rotate(-12deg);">刘栩</div>
+                <div class="text-element title-text" contenteditable="true" id="titleText"
+                    style="transform: translate(0px, -16px) rotate(-12deg);">售后技术支持</div>
+                <div class="text-element mbti-text" contenteditable="true" id="mbtiText"
+                    style="transform: translate(15px, -8px);">(e人)</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls" id="controls">
+        <input type="file" id="imageInput" accept="image/*">
+        <button class="btn-upload" onclick="document.getElementById('imageInput').click()">上传照片</button>
+        <button class="btn-download" id="downloadBtn">下载高精度 PDF</button>
+    </div>
+
+    
