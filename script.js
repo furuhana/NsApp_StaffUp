@@ -84,7 +84,7 @@ downloadBtn.addEventListener('click', async () => {
                                 /* 将 Base64 字体直接嵌入 SVG 内 (请确保这里写的是你打包后的真实超长 base64 字符串) */
                                 @font-face {
                                     font-family: 'HKPianPian';
-                                    src: url('data:font/truetype;charset=utf-8;base64,...') format('truetype');
+                                    src: url('${myFontBase64}') format('truetype');
                                 }
                                 .svg-name { font-family: 'HKPianPian', cursive; font-size: 60px; fill: #2A4FAC; stroke: #FFFFFF; stroke-width: 2.6px; paint-order: stroke fill; }
                                 .svg-title { font-family: 'HKPianPian', cursive; font-size: 30px; fill: #2A4FAC; stroke: #FFFFFF; stroke-width: 2.6px; paint-order: stroke fill; letter-spacing: -1px; }

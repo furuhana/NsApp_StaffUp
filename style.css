@@ -1,11 +1,6 @@
 /* ================= 视觉布局与 UI 设计 ================= */
 /* 1. 引入本地华康翩翩体 */
-@font-face {
-    font-family: 'HKPianPian';
-    src: url('data:font/truetype;charset=utf-8;base64,...') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-}
+
 
 :root {
     /* 基础参数 */
