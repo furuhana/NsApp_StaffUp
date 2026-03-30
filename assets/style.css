@@ -1,0 +1,295 @@
+        /* ================= 视觉布局与 UI 设计 ================= */
+        /* 1. 引入本地华康翩翩体 */
+
+        /* 字体已被移至 fontData.js，并由下方 JS 动态注入 */
+
+
+        :root {
+            /* 基础参数 */
+            --bg-color: #333333;
+            --canvas-bg: #484848;
+            --brand-color: #2A4FAC;
+            /* 2. 将全局手写字体变量替换为本地字体 */
+            --font-handwriting: 'HKPianPian', cursive;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: sans-serif;
+        }
+
+        /* 外层画布 (w304, h354, 底色484848) */
+        .export-canvas {
+            width: 304px;
+            height: 354px;
+            background-color: transparent;
+            /* 平时隐藏底色 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: none;
+            /* 平时隐藏阴影 */
+        }
+
+        /* 卡片底板 图层1 (w284, h334, 圆角36, 底色ffffff) */
+        .card-base {
+            width: 284px;
+            height: 334px;
+            background-color: #ffffff;
+            border-radius: 36px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 照片容器 图层2 (w246, h246, 圆角18) */
+        .photo-container {
+            width: 246px;
+            height: 246px;
+            border-radius: 18px;
+            margin-top: 19px;
+            overflow: hidden;
+            background-color: #e0e0e0;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .photo-container:hover {
+            opacity: 0.9;
+        }
+
+        .photo-image {
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-color: #e0e0e0;
+        }
+
+        /* 文字图层 图层3 (绝对定位) */
+        .text-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .text-element {
+            position: absolute;
+            pointer-events: auto;
+            outline: none;
+            white-space: nowrap;
+            color: var(--brand-color);
+            transition: text-shadow 0.2s;
+        }
+
+        .text-element:focus {
+            text-shadow: 0 0 5px rgba(42, 79, 172, 0.3);
+        }
+
+        /* 名字 */
+        .name-text {
+            font-family: var(--font-handwriting);
+            font-size: 60px;
+            letter-spacing: 0%;
+            transform: rotate(-12deg);
+            left: 20px;
+            bottom: 30px;
+            -webkit-text-stroke: 6px #ffffff;
+            paint-order: stroke fill;
+            z-index: 10;
+            transform-origin: left bottom;
+        }
+
+        .name-text:empty::before {
+            content: "叫啥名字";
+            color: #D7D7D7;
+        }
+
+        .name-text:empty::before {
+            content: "叫啥名字";
+            color: #D7D7D7;
+        }
+
+        /* 职位 */
+        .title-text {
+            font-family: var(--font-handwriting);
+            font-size: 24px;
+            letter-spacing: -1px;
+            transform: rotate(-12deg);
+            left: 90.8px;
+            bottom: 20px;
+            -webkit-text-stroke: 6px #ffffff;
+            paint-order: stroke fill;
+            z-index: 9;
+            transform-origin: left bottom;
+        }
+
+        .title-text:empty::before {
+            content: "什么工作的啊？";
+            color: #D7D7D7;
+        }
+
+        .title-text:empty::before {
+            content: "什么工作的啊？";
+            color: #D7D7D7;
+        }
+
+        /* MBTI */
+        .mbti-text {
+            font-family: var(--font-handwriting);
+            /* 改用手写体变量 */
+            font-size: 18px;
+            /* font-weight: bold; 手写体通常不需要额外加粗，如果你觉得太细可以把这行加回来 */
+            left: 202px;
+            bottom: 10px;
+            z-index: 8;
+        }
+
+        /* 操作区 */
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .btn-upload {
+            background-color: #555555;
+            color: white;
+        }
+
+        .btn-upload:hover {
+            background-color: #666666;
+        }
+
+        .btn-download {
+            background-color: var(--brand-color);
+            color: white;
+        }
+
+        .btn-download:hover {
+            background-color: #3b62c8;
+        }
+
+        #imageInput {
+            display: none;
+        }
+
+        .photo-container {
+            position: relative;
+        }
+
+        .photo-toolbar {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: none;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px;
+            border-radius: 12px;
+            z-index: 20;
+        }
+
+        .photo-container:hover .photo-toolbar {
+            display: flex;
+        }
+
+        .tool-btn {
+            cursor: pointer;
+            font-size: 16px;
+            color: #ffffff;
+            user-select: none;
+            line-height: 1;
+            transition: transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .tool-btn:hover {
+            transform: scale(1.1);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .photo-image {
+            transition: transform 0.2s ease-out;
+        }
+
+        /* MBTI 操作区 */
+        .mbti-toolbar {
+            position: absolute;
+            left: 240px;
+            bottom: 0px;
+            padding: 0px 0 10px 30px;
+            display: none;
+            flex-direction: row;
+            z-index: 20;
+            /* Expand hover hit area to bridge the gap */
+        }
+
+
+
+        .mbti-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-family: sans-serif;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+            box-sizing: border-box;
+        }
+
+        .btn-i {
+            background-color: #2A4FAC;
+            color: #FFFFFF;
+            position: relative;
+            z-index: 1;
+        }
+
+        .btn-i:hover {
+            background-color: #5076D4;
+        }
+
+        .btn-e {
+            background-color: #FFDB29;
+            color: #1326A5;
+            margin-left: -5px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .btn-e:hover {
+            background-color: #FFE97C;
+        }
