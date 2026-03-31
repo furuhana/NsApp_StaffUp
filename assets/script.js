@@ -51,11 +51,23 @@ function renderList() {
         item.innerHTML = `
             <div class="card-item-header">
                 <span>卡片 #${index + 1}</span>
-                <span class="btn-delete" onclick="event.stopPropagation(); deleteCard(${index})">删除</span>
+                <div class="card-item-actions">
+                    <div class="icon-btn btn-download-single" title="下载此卡片" onclick="event.stopPropagation(); downloadSingleCard(${index})">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 0C12.4183 1.93128e-07 16 3.58174 16 8C16 12.4183 12.4183 16 8 16C3.58172 16 -1.93127e-07 12.4182 0 8C3.02947e-07 3.58176 3.58172 3.99984e-05 8 0ZM6.40527 8.30957H3.42871L8 12.5713L12.5713 8.30957H9.59473V4.57129H6.40527V8.30957Z" fill="#838383"/>
+                        </svg>
+                    </div>
+                    <div class="icon-btn btn-delete" title="删除" onclick="event.stopPropagation(); deleteCard(${index})">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="M16 8C16 12.4183 12.4183 16 8 16C3.58172 16 -5.5772e-07 12.4182 -3.64592e-07 8C-1.71465e-07 3.58176 3.58172 3.95474e-05 8 -3.49691e-07C12.4183 -1.56563e-07 16 3.58174 16 8ZM9.39976 7.99976L11.5692 5.83005L10.1695 4.43053L8 6.6L5.83053 4.43053L4.43077 5.83005L6.60024 7.99976L4.43077 10.1692L5.83053 11.569L8 9.39952L10.1695 11.569L11.5692 10.1692L9.39976 7.99976Z" fill="#838383"/>
+                        </svg>
+                    </div>
+                </div>
             </div>
             <div class="card-item-form">
                 <input type="text" class="name-input" value="${card.name === DEFAULT_NAME ? '' : card.name}" 
                     onclick="event.stopPropagation()"
+                    onfocus="selectCard(${index})"
                     oncompositionstart="isComposing = true"
                     oncompositionend="isComposing = false; syncFromSidebar(${index}, 'name', this.value, true)"
                     oninput="syncFromSidebar(${index}, 'name', this.value, false)"
@@ -64,13 +76,14 @@ function renderList() {
                 
                 <input type="text" class="title-input" value="${card.title === DEFAULT_TITLE ? '' : card.title}" 
                     onclick="event.stopPropagation()"
+                    onfocus="selectCard(${index})"
                     oncompositionstart="isComposing = true"
                     oncompositionend="isComposing = false; syncFromSidebar(${index}, 'title', this.value, true)"
                     oninput="syncFromSidebar(${index}, 'title', this.value, false)" 
                     onblur="syncFromSidebar(${index}, 'title', this.value, true); if(this.value.trim()==='') syncFromSidebar(${index}, 'title', DEFAULT_TITLE, true)"
                     placeholder="${DEFAULT_TITLE}">
 
-                <div class="mbti-toggle" onclick="event.stopPropagation()">
+                <div class="mbti-toggle" onclick="event.stopPropagation(); selectCard(${index})">
                     <div class="mbti-opt i ${isI ? 'active' : ''}" onclick="setMbti('i', ${index})">I</div>
                     <div class="mbti-opt e ${isE ? 'active' : ''}" onclick="setMbti('e', ${index})">E</div>
                 </div>
@@ -80,11 +93,21 @@ function renderList() {
     });
 }
 
-// 2. 选择卡片
+// 2. 选择卡片 (优化：采用局部更新 Class 方式，防止重新渲染导致正在操作的输入框失焦)
 function selectCard(index) {
     if (activeIndex === index) return;
+    
+    // 移除旧的 active 类
+    const oldActiveItem = cardListContainer.children[activeIndex];
+    if (oldActiveItem) oldActiveItem.classList.remove('active');
+    
+    // 更新索引
     activeIndex = index;
-    renderList();
+    
+    // 添加新的 active 类
+    const newActiveItem = cardListContainer.children[activeIndex];
+    if (newActiveItem) newActiveItem.classList.add('active');
+    
     updatePreview();
 }
 
@@ -229,6 +252,9 @@ document.addEventListener('click', () => {
 });
 
 window.setMbti = (type, targetIndex = activeIndex) => {
+    // 确保选中的卡片被激活
+    selectCard(targetIndex);
+    
     const card = cardList[targetIndex];
     card.mbti = (type === 'i') ? '(i人)' : '(e人)';
     
@@ -236,8 +262,7 @@ window.setMbti = (type, targetIndex = activeIndex) => {
         mbtiTextEl.innerText = card.mbti;
     }
     
-    // 更新侧边栏 UI (局部更新或全量更新，由于有多个项，全量渲染最稳但可能失焦)
-    // 只有在操作侧边栏时才可能由于点击按钮导致此处执行
+    // 由于 MBTI 这种按钮点击不需要保留焦点，且数量较少，全量渲染比较方便同步两端状态（i/e 按钮的高亮）
     renderList(); 
     mbtiToolbarEl.style.display = 'none';
 };
@@ -308,6 +333,44 @@ window.onmouseup = () => {
     isDragging = false;
     photoWrap.style.cursor = 'pointer';
 };
+
+// ================= 单个下载逻辑 =================
+async function downloadSingleCard(index) {
+    const card = cardList[index];
+    if (card.name === DEFAULT_NAME || !card.avatar) {
+        alert("请先完成此卡片的信息（姓名和照片）再下载");
+        return;
+    }
+
+    // 切换到当前卡片并更新预览
+    selectCard(index);
+    await nextFrame();
+
+    const { jsPDF } = window.jspdf;
+    const exportDiv = document.getElementById('exportCanvas');
+
+    try {
+        const canvas = await html2canvas(exportDiv, {
+            scale: 4,
+            useCORS: true,
+            backgroundColor: '#484848'
+        });
+        const pngData = canvas.toDataURL('image/png');
+
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'px',
+            format: [304, 354]
+        });
+        doc.addImage(pngData, 'PNG', 0, 0, 304, 354);
+        
+        const filename = `${card.name}_${card.title}.pdf`.replace(/[\\/:*?"<>|]/g, "_");
+        doc.save(filename);
+    } catch (err) {
+        console.error("单个导出失败:", err);
+        alert("导出过程出错，请查看控制台。");
+    }
+}
 
 // ================= 批量下载逻辑 (核心) =================
 
