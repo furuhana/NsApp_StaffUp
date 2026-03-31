@@ -1,279 +1,389 @@
-        // ================= 交互功能 (JavaScript) =================
+const DEFAULT_NAME = '输入名字';
+const DEFAULT_TITLE = '输入员工的职业';
 
-        // ================= MBTI 切换 =================
-        const mbtiTextElClick = document.getElementById('mbtiText');
-        const mbtiToolbarEl = document.getElementById('mbtiToolbar');
+let cardList = [
+    {
+        id: Date.now(),
+        name: DEFAULT_NAME,
+        title: DEFAULT_TITLE,
+        mbti: '(e人)',
+        avatar: '', // Base64 或 Blob URL
+        scale: 1,
+        x: 0,
+        y: 0
+    }
+];
+let activeIndex = 0;
+let isComposing = false; // 标记是否正在输入中文（IME）
 
-        mbtiTextElClick.addEventListener('click', function (e) {
-            e.stopPropagation();
-            if (mbtiToolbarEl.style.display === 'flex') {
-                mbtiToolbarEl.style.display = 'none';
-            } else {
-                mbtiToolbarEl.style.display = 'flex';
+// ================= DOM 元素引用 =================
+const cardListContainer = document.getElementById('cardListContainer');
+const addCardBtn = document.getElementById('addCardBtn');
+const downloadAllBtn = document.getElementById('downloadAllBtn');
+const imageInput = document.getElementById('imageInput');
+
+const nameTextEl = document.getElementById('nameText');
+const titleTextEl = document.getElementById('titleText');
+const mbtiTextEl = document.getElementById('mbtiText');
+const avatarImageEl = document.getElementById('avatarImage');
+const mbtiToolbarEl = document.getElementById('mbtiToolbar');
+const photoWrap = document.getElementById('photoWrap');
+
+// ================= 初始化 =================
+window.onload = () => {
+    renderList();
+    updatePreview();
+};
+
+// ================= 核心操作函数 =================
+
+// 1. 渲染左侧列表
+function renderList() {
+    cardListContainer.innerHTML = '';
+    cardList.forEach((card, index) => {
+        const item = document.createElement('div');
+        item.className = `card-item ${index === activeIndex ? 'active' : ''}`;
+        item.onclick = () => selectCard(index);
+
+        const isI = card.mbti === '(i人)';
+        const isE = card.mbti === '(e人)';
+
+        item.innerHTML = `
+            <div class="card-item-header">
+                <span>卡片 #${index + 1}</span>
+                <span class="btn-delete" onclick="event.stopPropagation(); deleteCard(${index})">删除</span>
+            </div>
+            <div class="card-item-form">
+                <input type="text" class="name-input" value="${card.name === DEFAULT_NAME ? '' : card.name}" 
+                    onclick="event.stopPropagation()"
+                    oncompositionstart="isComposing = true"
+                    oncompositionend="isComposing = false; syncFromSidebar(${index}, 'name', this.value, true)"
+                    oninput="syncFromSidebar(${index}, 'name', this.value, false)"
+                    onblur="syncFromSidebar(${index}, 'name', this.value, true); if(this.value.trim()==='') syncFromSidebar(${index}, 'name', DEFAULT_NAME, true)"
+                    placeholder="${DEFAULT_NAME}">
+                
+                <input type="text" class="title-input" value="${card.title === DEFAULT_TITLE ? '' : card.title}" 
+                    onclick="event.stopPropagation()"
+                    oncompositionstart="isComposing = true"
+                    oncompositionend="isComposing = false; syncFromSidebar(${index}, 'title', this.value, true)"
+                    oninput="syncFromSidebar(${index}, 'title', this.value, false)" 
+                    onblur="syncFromSidebar(${index}, 'title', this.value, true); if(this.value.trim()==='') syncFromSidebar(${index}, 'title', DEFAULT_TITLE, true)"
+                    placeholder="${DEFAULT_TITLE}">
+
+                <div class="mbti-toggle" onclick="event.stopPropagation()">
+                    <div class="mbti-opt i ${isI ? 'active' : ''}" onclick="setMbti('i', ${index})">I</div>
+                    <div class="mbti-opt e ${isE ? 'active' : ''}" onclick="setMbti('e', ${index})">E</div>
+                </div>
+            </div>
+        `;
+        cardListContainer.appendChild(item);
+    });
+}
+
+// 2. 选择卡片
+function selectCard(index) {
+    if (activeIndex === index) return;
+    activeIndex = index;
+    renderList();
+    updatePreview();
+}
+
+// 3. 新增卡片
+addCardBtn.onclick = () => {
+    const newCard = {
+        id: Date.now(),
+        name: DEFAULT_NAME,
+        title: DEFAULT_TITLE,
+        mbti: '(e人)',
+        avatar: '',
+        scale: 1,
+        x: 0,
+        y: 0
+    };
+    cardList.push(newCard);
+    activeIndex = cardList.length - 1;
+    renderList();
+    updatePreview();
+    cardListContainer.scrollTop = cardListContainer.scrollHeight;
+};
+
+// 4. 删除卡片
+function deleteCard(index) {
+    if (cardList.length === 1) {
+        alert("至少保留一张卡片");
+        return;
+    }
+    cardList.splice(index, 1);
+    if (activeIndex >= cardList.length) {
+        activeIndex = cardList.length - 1;
+    }
+    renderList();
+    updatePreview();
+}
+
+// 5. 更新右侧预览区
+function updatePreview() {
+    const card = cardList[activeIndex];
+    nameTextEl.innerText = card.name;
+    titleTextEl.innerText = card.title;
+    mbtiTextEl.innerText = card.mbti;
+    
+    // 图片设置
+    if (card.avatar) {
+        avatarImageEl.style.backgroundImage = `url(${card.avatar})`;
+    } else {
+        avatarImageEl.style.backgroundImage = `url('https://via.placeholder.com/246x246.png?text=Click+to+Upload')`;
+    }
+    
+    // 恢复坐标和缩放
+    avatarImageEl.style.transform = `scale(${card.scale}) translate(${card.x}px, ${card.y}px)`;
+}
+
+// ================= 双向绑定 logic =================
+
+// A. 左侧输入 ➔ 右侧渲染
+// index: 索引, field: 字段名, value: 输入值, forceTruncate: 是否执行硬截断并回填输入框 (通常在 blur 或 compositionend 时为 true)
+window.syncFromSidebar = (index, field, value, forceTruncate = false) => {
+    const limit = (field === 'name') ? 4 : 9;
+    let finalValue = value;
+
+    // 只有在非合成状态下，且需要强制截断或正常输入时才处理超限
+    if (!isComposing && finalValue.length > limit) {
+        if (forceTruncate) {
+            // 硬截断：同步修改输入框的值
+            finalValue = finalValue.substring(0, limit);
+            const activeItem = cardListContainer.children[index];
+            if (activeItem) {
+                const inputs = activeItem.querySelectorAll('input');
+                const targetInput = (field === 'name') ? inputs[0] : inputs[1];
+                if (targetInput) targetInput.value = finalValue;
             }
-        });
+        } else {
+            // 软限制：此时不改写输入框，保持用户输入（如拼音），但更新到预览时可以截断或保持
+            // 为了让用户在输入法结束前看到完整拼音，这里不截断 finalValue
+        }
+    }
+    
+    // 更新数据模型
+    cardList[index][field] = finalValue;
+    
+    // 同步预览文字（在合成期间显示完整物理输入，非合成期间显示截断后的数据）
+    if (index === activeIndex) {
+        if (field === 'name') nameTextEl.innerText = finalValue;
+        if (field === 'title') titleTextEl.innerText = finalValue;
+    }
+};
 
-        document.addEventListener('click', function () {
-            mbtiToolbarEl.style.display = 'none';
-        });
+// B. 右侧文字编辑 ➔ 左侧列表数据保存
+function saveTextToState(el, limit, forceTruncate = false) {
+    let finalValue = el.innerText;
+    
+    // 强制截断逻辑 (仅在非合成状态且要求强截断时执行)
+    if (!isComposing && forceTruncate && finalValue.length > limit) {
+        finalValue = finalValue.substring(0, limit);
+        el.innerText = finalValue;
+        // 恢复光标到末尾
+        const range = document.createRange();
+        const sel = window.getSelection();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+    
+    const card = cardList[activeIndex];
+    card.name = nameTextEl.innerText;
+    card.title = titleTextEl.innerText;
+    
+    // 同步更新左侧列表输入框显示的文字 (非合成状态才回填，避免打断输入)
+    if (!isComposing) {
+        const activeItem = cardListContainer.children[activeIndex];
+        if (activeItem) {
+            const inputs = activeItem.querySelectorAll('input');
+            if (inputs[0]) inputs[0].value = card.name === DEFAULT_NAME ? '' : card.name;
+            if (inputs[1]) inputs[1].value = card.title === DEFAULT_TITLE ? '' : card.title;
+        }
+    }
+}
 
-        function setMbti(type) {
-            const mbtiEl = document.getElementById('mbtiText');
-            if (type === 'i') {
-                mbtiEl.innerText = '(i人)';
-            } else {
-                mbtiEl.innerText = '(e人)';
-            }
-            mbtiToolbarEl.style.display = 'none';
+// 绑定 IME 事件
+nameTextEl.addEventListener('compositionstart', () => { isComposing = true; });
+nameTextEl.addEventListener('compositionend', () => { isComposing = false; saveTextToState(nameTextEl, 4, true); });
+titleTextEl.addEventListener('compositionstart', () => { isComposing = true; });
+titleTextEl.addEventListener('compositionend', () => { isComposing = false; saveTextToState(titleTextEl, 9, true); });
+
+nameTextEl.addEventListener('input', () => { saveTextToState(nameTextEl, 4, false); });
+titleTextEl.addEventListener('input', () => { saveTextToState(titleTextEl, 9, false); });
+
+nameTextEl.addEventListener('blur', () => { saveTextToState(nameTextEl, 4, true); });
+titleTextEl.addEventListener('blur', () => { saveTextToState(titleTextEl, 9, true); });
+
+// MBTI 弹窗交互
+mbtiTextEl.onclick = (e) => {
+    e.stopPropagation();
+    mbtiToolbarEl.style.display = (mbtiToolbarEl.style.display === 'flex') ? 'none' : 'flex';
+};
+
+document.addEventListener('click', () => {
+    mbtiToolbarEl.style.display = 'none';
+});
+
+window.setMbti = (type, targetIndex = activeIndex) => {
+    const card = cardList[targetIndex];
+    card.mbti = (type === 'i') ? '(i人)' : '(e人)';
+    
+    if (targetIndex === activeIndex) {
+        mbtiTextEl.innerText = card.mbti;
+    }
+    
+    // 更新侧边栏 UI (局部更新或全量更新，由于有多个项，全量渲染最稳但可能失焦)
+    // 只有在操作侧边栏时才可能由于点击按钮导致此处执行
+    renderList(); 
+    mbtiToolbarEl.style.display = 'none';
+};
+
+// ================= 图片操作 (缩放/拖拽/上传) =================
+
+// 1. 上传逻辑：排除文字点击，防止干扰编辑
+photoWrap.onclick = (e) => {
+    if (e.target !== photoWrap && e.target.id !== 'avatarImage') return;
+    imageInput.click();
+};
+
+imageInput.onchange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const dataUrl = event.target.result;
+            cardList[activeIndex].avatar = dataUrl;
+            cardList[activeIndex].scale = 1;
+            cardList[activeIndex].x = 0;
+            cardList[activeIndex].y = 0;
+            updatePreview();
+        };
+        reader.readAsDataURL(file);
+    }
+};
+
+// 2. 缩放
+window.zoomImage = (delta) => {
+    const card = cardList[activeIndex];
+    card.scale += delta;
+    if (card.scale < 1) card.scale = 1;
+    if (card.scale > 3) card.scale = 3;
+    updatePreview();
+};
+
+// 3. 拖拽 (带边界限制)
+let isDragging = false;
+let startX, startY, initX, initY;
+
+photoWrap.onmousedown = (e) => {
+    if (e.target.closest('.tool-btn')) return;
+    const card = cardList[activeIndex];
+    isDragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    initX = card.x;
+    initY = card.y;
+    photoWrap.style.cursor = 'grabbing';
+};
+
+window.onmousemove = (e) => {
+    if (!isDragging) return;
+    const card = cardList[activeIndex];
+    const dx = (e.clientX - startX) / card.scale;
+    const dy = (e.clientY - startY) / card.scale;
+    
+    // 边界计算 (简易版)
+    const limit = 123 * (card.scale - 1) / card.scale;
+    card.x = Math.max(-limit, Math.min(limit, initX + dx));
+    card.y = Math.max(-limit, Math.min(limit, initY + dy));
+    
+    updatePreview();
+};
+
+window.onmouseup = () => {
+    isDragging = false;
+    photoWrap.style.cursor = 'pointer';
+};
+
+// ================= 批量下载逻辑 (核心) =================
+
+async function nextFrame() {
+    return new Promise(res => requestAnimationFrame(() => setTimeout(res, 50)));
+}
+
+downloadAllBtn.onclick = async () => {
+    // 1. 过滤掉未曾修改的默认数据 (名字未改或没传照片)
+    const validCards = cardList.filter(c => 
+        c.name !== '叫啥名字' && c.avatar !== ''
+    );
+
+    if (validCards.length === 0) {
+        alert("没有可导出的有效卡片（请确保名字已修改且已上传照片）");
+        return;
+    }
+
+    downloadAllBtn.innerText = `生成中 (0/${validCards.length})`;
+    downloadAllBtn.disabled = true;
+
+    const zip = new JSZip();
+    const { jsPDF } = window.jspdf;
+    const exportDiv = document.getElementById('exportCanvas');
+
+    try {
+        for (let i = 0; i < validCards.length; i++) {
+            const card = validCards[i];
+            
+            // 切换数据渲染 (重要：必须要等待 DOM 渲染完成)
+            activeIndex = cardList.indexOf(card);
+            updatePreview();
+            renderList();
+            await nextFrame();
+
+            // 截取 Canvas
+            const canvas = await html2canvas(exportDiv, {
+                scale: 4,
+                useCORS: true,
+                backgroundColor: '#484848'
+            });
+            const pngData = canvas.toDataURL('image/png');
+
+            // 生成 PDF
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'px',
+                format: [304, 354]
+            });
+            doc.addImage(pngData, 'PNG', 0, 0, 304, 354);
+            const pdfBlob = doc.output('blob');
+
+            // 存入 ZIP 或直接单份下载
+            const filename = `${card.name}_${card.title}.pdf`.replace(/[\\/:*?"<>|]/g, "_");
+            zip.file(filename, pdfBlob);
+
+            downloadAllBtn.innerText = `生成中 (${i + 1}/${validCards.length})`;
         }
 
-        // 1. 图片替换功能
-        const imageInput = document.getElementById('imageInput');
-        const avatarImage = document.getElementById('avatarImage');
-
-        imageInput.addEventListener('change', function (e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function (event) {
-                    avatarImage.style.backgroundImage = 'url(' + event.target.result + ')';
-                }
-                reader.readAsDataURL(file);
-            }
-        });
-        // ================= 照片操作逻辑 =================
-        let currentScale = 1;
-        let currentX = 0;
-        let currentY = 0;
-
-        function zoomImage(delta) {
-            currentScale += delta;
-            if (currentScale < 1) currentScale = 1; // 最小不能超过容器自身（即1.0倍拉伸）
-            if (currentScale > 3) currentScale = 3; // 限制最大放大倍数
-
-            // 缩小时重新限制拖拽边界
-            const maxVal = 123 * (currentScale - 1) / currentScale;
-            currentX = Math.max(-maxVal, Math.min(maxVal, currentX));
-            currentY = Math.max(-maxVal, Math.min(maxVal, currentY));
-
-            updateImageTransform();
+        if (validCards.length === 1) {
+            // 只有一张则直接下载 PDF
+            const card = validCards[0];
+            const filename = `${card.name}_${card.title}.pdf`.replace(/[\\/:*?"<>|]/g, "_");
+            const blob = zip.file(filename).async("blob");
+            saveAs(await blob, filename);
+        } else {
+            // 多张则打包 ZIP
+            const content = await zip.generateAsync({ type: "blob" });
+            saveAs(content, "批量员工卡片.zip");
         }
 
-        function updateImageTransform() {
-            const img = document.getElementById('avatarImage');
-            img.style.transform = `scale(${currentScale}) translate(${currentX}px, ${currentY}px)`;
-        }
-
-        // ==== 图片拖拽逻辑 ====
-        let isDragging = false;
-        let hasMoved = false;
-        let startClientX = 0;
-        let startClientY = 0;
-        let initialX = 0;
-        let initialY = 0;
-
-        const photoWrap = document.getElementById('photoWrap');
-
-        photoWrap.addEventListener('mousedown', function (e) {
-            if (e.target.closest('.tool-btn')) return;
-            isDragging = true;
-            hasMoved = false;
-            startClientX = e.clientX;
-            startClientY = e.clientY;
-            initialX = currentX;
-            initialY = currentY;
-            photoWrap.style.cursor = 'grabbing';
-            e.preventDefault(); // 防止默认的选中文本等行为
-        });
-
-        window.addEventListener('mousemove', function (e) {
-            if (!isDragging) return;
-            const dx = e.clientX - startClientX;
-            const dy = e.clientY - startClientY;
-
-            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-                hasMoved = true;
-            }
-
-            // 计算新的位移（注意要除以 currentScale，因为 translate 是在 scale 之后的未缩放坐标系里）
-            const newX = initialX + dx / currentScale;
-            const newY = initialY + dy / currentScale;
-
-            // 计算最大允许的拖拽范围，保证图片边缘不暴露出背景
-            const maxVal = 123 * (currentScale - 1) / currentScale;
-
-            currentX = Math.max(-maxVal, Math.min(maxVal, newX));
-            currentY = Math.max(-maxVal, Math.min(maxVal, newY));
-
-            updateImageTransform();
-        });
-
-        window.addEventListener('mouseup', function (e) {
-            if (!isDragging) return;
-            isDragging = false;
-            photoWrap.style.cursor = 'pointer';
-
-            if (!hasMoved) {
-                // 如果没有发生明显拖拽，则视为点击，触发上传
-                document.getElementById('imageInput').click();
-            }
-        });
-
-
-        // ==== 适配移动端触摸拖拽 ====
-        photoWrap.addEventListener('touchstart', function (e) {
-            if (e.target.closest('.tool-btn')) return;
-            if (e.touches.length !== 1) return;
-            isDragging = true;
-            hasMoved = false;
-            startClientX = e.touches[0].clientX;
-            startClientY = e.touches[0].clientY;
-            initialX = currentX;
-            initialY = currentY;
-            // e.preventDefault(); 不要在此 preventDefault，否则可能会导致页面无法滚动或无法点击
-        }, { passive: false });
-
-        window.addEventListener('touchmove', function (e) {
-            if (!isDragging) return;
-            const dx = e.touches[0].clientX - startClientX;
-            const dy = e.touches[0].clientY - startClientY;
-
-            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-                hasMoved = true;
-                e.preventDefault(); // 当确认是拖拽图片时，阻止页面滚动
-            }
-
-            const newX = initialX + dx / currentScale;
-            const newY = initialY + dy / currentScale;
-
-            const maxVal = 123 * (currentScale - 1) / currentScale;
-
-            currentX = Math.max(-maxVal, Math.min(maxVal, newX));
-            currentY = Math.max(-maxVal, Math.min(maxVal, newY));
-
-            updateImageTransform();
-        }, { passive: false });
-
-        window.addEventListener('touchend', function (e) {
-            if (!isDragging) return;
-            isDragging = false;
-
-            if (!hasMoved) {
-                // 如果没有发生明显拖拽，则视为点击，触发上传
-                document.getElementById('imageInput').click();
-            }
-        });
-
-        // 当上传新照片时，重置所有缩放和拖拽状态
-        imageInput.addEventListener('change', function (e) {
-            currentScale = 1;
-            currentX = 0;
-            currentY = 0;
-            updateImageTransform();
-        });
-
-
-
-        // ================= 限制内容 =================
-        const nameTextEl = document.getElementById('nameText');
-        const titleTextEl = document.getElementById('titleText');
-        let isComposingName = false;
-        let isComposingTitle = false;
-
-        // 处理 nameText
-        nameTextEl.addEventListener('compositionstart', () => isComposingName = true);
-        nameTextEl.addEventListener('compositionend', function () {
-            isComposingName = false;
-            enforceLengthLimit(this, 4);
-        });
-        nameTextEl.addEventListener('input', function () {
-            if (this.innerHTML === '<br>') this.innerHTML = '';
-            if (!isComposingName) enforceLengthLimit(this, 4);
-        });
-
-        // 处理 titleText
-        titleTextEl.addEventListener('compositionstart', () => isComposingTitle = true);
-        titleTextEl.addEventListener('compositionend', function () {
-            isComposingTitle = false;
-            enforceLengthLimit(this, 9);
-        });
-        titleTextEl.addEventListener('input', function () {
-            if (this.innerHTML === '<br>') this.innerHTML = '';
-            if (!isComposingTitle) enforceLengthLimit(this, 9);
-        });
-
-        function enforceLengthLimit(el, limit) {
-            if (el.innerText.length > limit) {
-                // 超过字符数，自动截断
-                el.innerText = el.innerText.substring(0, limit);
-
-                // 将光标恢复到末尾
-                const sel = window.getSelection();
-                const newRange = document.createRange();
-                newRange.selectNodeContents(el);
-                newRange.collapse(false);
-                sel.removeAllRanges();
-                sel.addRange(newRange);
-            }
-        }
-        // ============================================
-
-        // 3. 核心导出逻辑 (PDF 生成)
-        const downloadBtn = document.getElementById('downloadBtn');
-        const exportCanvas = document.getElementById('exportCanvas');
-        const layer3 = document.getElementById('layer3');
-
-        downloadBtn.addEventListener('click', async () => {
-            // 状态：正在处理
-            downloadBtn.innerText = '正在生成(处理字体中)...';
-            downloadBtn.disabled = true;
-
-            try {
-                // 新逻辑：不用 SVG 手写偏移量，直接读取实际 DOM 的位置！
-                // 为了避免 html2canvas 渲染 font-stroke 以及 font-family 的毛刺问题，
-                // 我们可以使用 html2canvas 截取整个画布。
-                // 新版 html2canvas 1.4.1 在纯本地环境（以及 Base64 加载的字体下）处理 -webkit-text-stroke 还是可以的，
-                // 但为了绝对与预览保持一模一样的位置，我们决定直接让 html2canvas 连同文字层一起全量处理。
-                // 因为我们的字体是 Base64 直接写在 CSS 里的，html2canvas 能完美解析它！
-
-                // 但还有一个保险方案：用 html2canvas 截取底图，然后自己遍历 text-layer 里的文字
-                // 放到 Canvas 渲染。因为 html2canvas 对 -webkit-text-stroke 处理确实不好，
-                // 而 ctx.strokeText 则可以通过 ctx.miterLimit / ctx.lineJoin 来完美模拟！
-
-                // 因为用户要求两者的“位置和文字”必须完全一致，最简单的方案就是移除 SVG 生成，直接用 html2canvas 截图全量！
-                // 如果发现线太细，我们可以利用 text-shadow 辅助 html2canvas 去渲染边框。
-
-                // 给字体加 text-shadow 来增强描边（如果原本只有 webkit-text-stroke，它可能会在 canvas 变形）
-                const nameEl = document.getElementById('nameText');
-                const titleEl = document.getElementById('titleText');
-                const prevNameStroke = nameEl.style.webkitTextStroke;
-                const prevTitleStroke = titleEl.style.webkitTextStroke;
-
-                // 截取全屏！不要分图层了。既然完全没有异步字体等干扰，全局截图即可保持位置 100% 一一对应。
-                const fullCanvas = await html2canvas(exportCanvas, {
-                    scale: 4,
-                    useCORS: true,
-                    backgroundColor: '#484848'
-                });
-
-                const fullPngData = fullCanvas.toDataURL('image/png');
-
-                // 合成 PDF
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF({
-                    orientation: 'portrait',
-                    unit: 'px',
-                    format: [304, 354]
-                });
-
-                doc.addImage(fullPngData, 'PNG', 0, 0, 304, 354);
-                doc.save('员工卡片.pdf');
-
-            } catch (error) {
-                console.error("生成流程中断:", error);
-            } finally {
-                // 恢复 UI 状态
-                downloadBtn.innerText = '下载高精度 PDF';
-                downloadBtn.disabled = false;
-            }
-        });
+    } catch (err) {
+        console.error("批量导出失败:", err);
+        alert("制作过程中发生错误，请查看控制台。");
+    } finally {
+        downloadAllBtn.innerText = "下载全部";
+        downloadAllBtn.disabled = false;
+    }
+};
