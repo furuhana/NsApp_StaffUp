@@ -133,7 +133,7 @@ addCardBtn.onclick = () => {
 // 4. 删除卡片
 function deleteCard(index) {
     if (cardList.length === 1) {
-        alert("至少保留一张卡片");
+        showToast("至少保留一张卡片");
         return;
     }
     cardList.splice(index, 1);
@@ -338,7 +338,7 @@ window.onmouseup = () => {
 async function downloadSingleCard(index) {
     const card = cardList[index];
     if (card.name === DEFAULT_NAME || !card.avatar) {
-        alert("请先完成此卡片的信息（姓名和照片）再下载");
+        showToast("请先完成此卡片的信息（姓名和照片）再下载");
         return;
     }
 
@@ -368,7 +368,7 @@ async function downloadSingleCard(index) {
         doc.save(filename);
     } catch (err) {
         console.error("单个导出失败:", err);
-        alert("导出过程出错，请查看控制台。");
+        showToast("导出过程出错，请查看控制台。");
     }
 }
 
@@ -385,7 +385,7 @@ downloadAllBtn.onclick = async () => {
     );
 
     if (validCards.length === 0) {
-        alert("没有可导出的有效卡片（请确保名字已修改且已上传照片）");
+        showToast("没有可导出的有效卡片（需改名且有照片）");
         return;
     }
 
@@ -444,7 +444,7 @@ downloadAllBtn.onclick = async () => {
 
     } catch (err) {
         console.error("批量导出失败:", err);
-        alert("制作过程中发生错误，请查看控制台。");
+        showToast("制作过程中发生错误，请查看控制台。");
     } finally {
         downloadAllBtn.innerText = "下载全部";
         downloadAllBtn.disabled = false;
@@ -510,14 +510,14 @@ if (excelInput) {
                 activeIndex = cardList.length - 1; // 默认选中最后一张
                 renderList();
                 updatePreview();
-                alert(`🎉 成功导入 ${newCards.length} 名成员！`);
+                showToast(`🎉 成功导入 ${newCards.length} 名成员！`);
             } else {
-                alert("未在 Excel 中发现有效数据，请检查表头名是否为【名字、职位、性格、头像】。");
+                showToast("未在 Excel 中发现有效数据，请检查表头名。");
             }
 
         } catch (err) {
             console.error("Excel 导入失败:", err);
-            alert("导入失败，请确保格式正确 (支持 .xlsx, .xls, .csv)。");
+            showToast("导入失败，请检查文件格式。");
         } finally {
             excelInput.value = ''; // 清除以支持重复导入
         }
@@ -556,5 +556,22 @@ async function extractImagesFromXlsx(data) {
         console.warn("图片提取失败:", e);
         return [];
     }
+}
+
+// 共通提示气泡
+function showToast(message) {
+    const root = document.getElementById('toast-root');
+    if (!root) return;
+
+    const toast = document.createElement('div');
+    toast.className = 'toast-bubble';
+    toast.textContent = message;
+
+    root.appendChild(toast);
+
+    // 3秒后彻底从 DOM 移除 (CSS 里的动画在 2.5s 后触发 fade-out)
+    setTimeout(() => {
+        toast.remove();
+    }, 3100); 
 }
 

@@ -386,3 +386,61 @@ body {
     background: #FFDB29;
     color: #1326A5;
 }
+
+/* ================= 丝滑气泡提示 (Toast) ================= */
+#toast-root {
+    position: fixed;
+    top: 30px;
+    /* 计算公式：左侧边栏宽度(380px) + 右侧预览区剩余宽度的一半 */
+    left: calc(380px + (100vw - 380px) / 2);
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.toast-bubble {
+    padding: 10px 22px;
+    background: rgba(30, 30, 30, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: rgba(255, 255, 255, 0.7);
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    /* box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4); */
+    /* border: 1px solid rgba(255, 255, 255, 0.12); */
+
+    /* 动画配置：贝塞尔曲线控制滑入与平滑退场 */
+    animation: toast-in 0.6s cubic-bezier(0.19, 1, 0.22, 1) forwards,
+        toast-out 0.5s cubic-bezier(0.19, 1, 0.22, 1) forwards 2.5s;
+
+    white-space: nowrap;
+}
+
+@keyframes toast-in {
+    0% {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.85);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes toast-out {
+    0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(-15px) scale(0.92);
+    }
+}
