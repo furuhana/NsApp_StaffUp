@@ -450,3 +450,111 @@ downloadAllBtn.onclick = async () => {
         downloadAllBtn.disabled = false;
     }
 };
+
+// ================= Excel 导入功能 =================
+const importBtn = document.getElementById('importBtn');
+const excelInput = document.getElementById('excelInput');
+
+if (importBtn) {
+    importBtn.onclick = () => excelInput.click();
+}
+
+if (excelInput) {
+    excelInput.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            const data = await file.arrayBuffer();
+            
+            // 1. 解析基础文本数据 (SheetJS)
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            
+            // 2. 尝试提取图片 (需利用已引入的 JSZip)
+            const images = await extractImagesFromXlsx(data);
+            
+            // 3. 处理每一行并映射数据
+            const newCards = jsonData.map((row, i) => {
+                // 表头匹配逻辑
+                const name = row['名字'] || row['Name'] || DEFAULT_NAME;
+                const title = row['职位'] || row['Title'] || DEFAULT_TITLE;
+                const personality = String(row['性格'] || row['Personality'] || '');
+                const mbti = (personality.toLowerCase().includes('i')) ? '(i人)' : '(e人)';
+                
+                // 头像匹配 (图片通常按顺序在 xl/media 中)
+                const avatar = images[i] || ''; 
+
+                return {
+                    id: Date.now() + i,
+                    name,
+                    title,
+                    mbti,
+                    avatar,
+                    scale: 1,
+                    x: 0,
+                    y: 0
+                };
+            });
+
+            // 4. 更新全局列表
+            if (newCards.length > 0) {
+                // 如果当前只有初始占位数据，则替换，否则追加
+                if (cardList.length === 1 && cardList[0].name === DEFAULT_NAME && !cardList[0].avatar) {
+                    cardList = newCards;
+                } else {
+                    cardList = [...cardList, ...newCards];
+                }
+                activeIndex = cardList.length - 1; // 默认选中最后一张
+                renderList();
+                updatePreview();
+                alert(`🎉 成功导入 ${newCards.length} 名成员！`);
+            } else {
+                alert("未在 Excel 中发现有效数据，请检查表头名是否为【名字、职位、性格、头像】。");
+            }
+
+        } catch (err) {
+            console.error("Excel 导入失败:", err);
+            alert("导入失败，请确保格式正确 (支持 .xlsx, .xls, .csv)。");
+        } finally {
+            excelInput.value = ''; // 清除以支持重复导入
+        }
+    };
+}
+
+/**
+ * 高级：从 XLSX ZIP 结构中顺次解析 xl/media 文件夹下的图片
+ */
+async function extractImagesFromXlsx(data) {
+    try {
+        const zip = await JSZip.loadAsync(data);
+        const mediaFolder = zip.folder("xl/media");
+        if (!mediaFolder) return [];
+
+        const imageFiles = [];
+        mediaFolder.forEach((relativePath, file) => {
+            if (!file.dir) imageFiles.push(file);
+        });
+
+        // 按照 image1, image2... 逻辑排序
+        imageFiles.sort((a, b) => {
+            const numA = parseInt(a.name.match(/\d+/) || '0');
+            const numB = parseInt(b.name.match(/\d+/) || '0');
+            return numA - numB;
+        });
+
+        const base64Images = [];
+        for (const file of imageFiles) {
+            const base64 = await file.async("base64");
+            const ext = file.name.split('.').pop().toLowerCase();
+            base64Images.push(`data:image/${ext};base64,${base64}`);
+        }
+        return base64Images;
+    } catch (e) {
+        console.warn("图片提取失败:", e);
+        return [];
+    }
+}
+

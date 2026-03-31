@@ -10,6 +10,8 @@
     <!-- 新增：批量导出所需的库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- 新增：Excel 解析库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <link rel="stylesheet" href="assets/style.css">
     <!-- 引入提取出的 Base64 字体数据 -->
@@ -21,7 +23,11 @@
         <!-- 左侧：卡片列表/管理区 -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <button class="btn-batch" id="downloadAllBtn">下载全部</button>
+                <div class="header-left">
+                    <button class="btn-batch" id="downloadAllBtn">下载全部</button>
+                    <button class="btn-batch" id="importBtn">导入名单</button>
+                    <input type="file" id="excelInput" accept=".xlsx, .xls, .csv" hidden>
+                </div>
                 <div class="btn-add-icon" id="addCardBtn" title="新增卡片">
                     <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path fill-rule="evenodd" clip-rule="evenodd" d="M27.3137 4.68627C33.5621 10.9346 33.5621 21.0653 27.3137 27.3137C21.0653 33.562 10.9346 33.562 4.68629 27.3137C-1.56204 21.0653 -1.56204 10.9347 4.68629 4.68627C10.9347 -1.5621 21.0653 -1.5621 27.3137 4.68627ZM17.9792 14.0201L17.9789 7.88355L14.0201 7.88389L14.0201 14.0201H7.88391L7.88357 17.9789L14.0201 17.9792L14.0201 24.1154H17.9792V17.9792H24.1154V14.0201H17.9792Z" fill="#2A50AC"/>
