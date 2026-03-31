@@ -59,17 +59,13 @@ body {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.btn-add-icon:hover {
-    transform: scale(1.15);
-}
-
 .btn-add-icon svg path {
     transition: fill 0.2s;
 }
 
 .btn-add-icon:hover svg path {
-    fill: #3b66d6;
-    /* 悬停时变为更亮的蓝色 */
+    fill: #6D8AD0;
+    /* 调浅色系的蓝 */
 }
 
 .card-list {
@@ -121,21 +117,21 @@ body {
 
 .icon-btn:hover {
     opacity: 1;
-    transform: scale(1.1);
+    /* 不再变大 */
 }
 
 .icon-btn svg path {
     transition: fill 0.2s;
 }
 
-/* 导出按钮悬停变为金黄色 */
+/* 导出按钮悬停变为浅蓝色 */
 .btn-download-single:hover svg path {
-    fill: #ffca28;
+    fill: #6D8AD0;
 }
 
-/* 删除按钮悬停变为鲜艳红 */
+/* 删除按钮悬停变为指定的淡红色 */
 .btn-delete:hover svg path {
-    fill: #ff3b30;
+    fill: #E16563;
 }
 
 .card-item-form {
@@ -194,13 +190,13 @@ body {
 }
 
 .mbti-opt.active.i {
-    background: #2A4FAC;
-    color: white;
+    background: #b8b8b8;
+    color: #1a1a1a;
 }
 
 .mbti-opt.active.e {
-    background: #FFDB29;
-    color: #1326A5;
+    background: #b8b8b8;
+    color: #1a1a1a;
 }
 
 /* 右侧预览区 */
