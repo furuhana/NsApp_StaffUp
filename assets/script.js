@@ -28,11 +28,13 @@ const mbtiTextEl = document.getElementById('mbtiText');
 const avatarImageEl = document.getElementById('avatarImage');
 const mbtiToolbarEl = document.getElementById('mbtiToolbar');
 const photoWrap = document.getElementById('photoWrap');
+const customScrollbarThumb = document.getElementById('customScrollbarThumb');
 
 // ================= 初始化 =================
 window.onload = () => {
     renderList();
     updatePreview();
+    initCustomScrollbar(); // 初始化自定义滚动条
 };
 
 // ================= 核心操作函数 =================
@@ -91,6 +93,45 @@ function renderList() {
         `;
         cardListContainer.appendChild(item);
     });
+    updateScrollbar(); // 渲染后更新滚动条
+}
+
+// ================= 自定义滚动条同步核心逻辑 =================
+function updateScrollbar() {
+    const { scrollTop, scrollHeight, clientHeight } = cardListContainer;
+    const scrollbarTrack = document.getElementById('customScrollbar');
+    if(!scrollbarTrack) return;
+    const trackHeight = scrollbarTrack.offsetHeight;
+    
+    // 如果不需要滚动，则隐藏滑块
+    if (scrollHeight <= clientHeight) {
+        customScrollbarThumb.style.height = '0px';
+        return;
+    }
+
+    // 计算滑块高度
+    const thumbHeight = Math.max((clientHeight / scrollHeight) * trackHeight, 30); 
+    // 计算滑块位置：(当前滚动位 / 最大滚动位) * (轨道最大可用位)
+    const maxScroll = scrollHeight - clientHeight;
+    const maxThumbMove = trackHeight - thumbHeight;
+    const thumbTop = (scrollTop / maxScroll) * maxThumbMove;
+
+    customScrollbarThumb.style.height = `${thumbHeight}px`;
+    customScrollbarThumb.style.top = `${thumbTop}px`;
+}
+
+function initCustomScrollbar() {
+    // 1. 监听原生滚动事件
+    cardListContainer.addEventListener('scroll', updateScrollbar);
+
+    // 2. 监听容器大小变化（例如窗口缩放）
+    const resizeObserver = new ResizeObserver(() => {
+        updateScrollbar();
+    });
+    resizeObserver.observe(cardListContainer);
+
+    // 初始调用一次
+    updateScrollbar();
 }
 
 // 2. 选择卡片 (优化：采用局部更新 Class 方式，防止重新渲染导致正在操作的输入框失焦)
@@ -127,7 +168,11 @@ addCardBtn.onclick = () => {
     activeIndex = cardList.length - 1;
     renderList();
     updatePreview();
-    cardListContainer.scrollTop = cardListContainer.scrollHeight;
+    // 确保在渲染后能够滚动到底部并同步滑块
+    setTimeout(() => {
+        cardListContainer.scrollTop = cardListContainer.scrollHeight;
+        updateScrollbar();
+    }, 0);
 };
 
 // 4. 删除卡片
@@ -142,6 +187,7 @@ function deleteCard(index) {
     }
     renderList();
     updatePreview();
+    updateScrollbar(); // 删除后同步
 }
 
 // 5. 更新右侧预览区

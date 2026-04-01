@@ -86,46 +86,65 @@ body {
     /* 调浅色系的蓝 */
 }
 
-.card-list {
+.card-list-container {
     flex: 1;
+    position: relative;
+    overflow: hidden; /* 裁剪原生滚动条的负边距溢出（可选） */
+}
+
+.card-list {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     overflow-y: auto;
-    /* 使用 overlay 确保滚动条不占用空间（在 WebKit 浏览器中有效） */
-    overflow-y: overlay;
+    /* 彻底隐藏原生滚动条 */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
     padding: 15px;
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-/* 自定义滚动条整体样式 */
+/* Chrome/Safari 隐藏原生滚动条 */
 .card-list::-webkit-scrollbar {
-    width: 8px;
-    /* 4px 滚动条宽度 + 4px 右边距 = 8px 总宽度 */
+    display: none;
 }
 
-/* 自定义滚动条滑块 (Thumb) */
-.card-list::-webkit-scrollbar-thumb {
-    background-color: transparent;
-    /* 初始透明 */
-    border-radius: 4px;
-    background-clip: padding-box;
-    /* 通过透明边框实现右对齐 4px 的边距效果 */
-    border-right: 4px solid transparent;
+/* 自定义绝对定位滚动条轨道 */
+.custom-scrollbar {
+    position: absolute;
+    top: 15px; /* 与内容 padding 保持一致 */
+    right: 0;
+    bottom: 15px; /* 与内容 padding 保持一致 */
+    width: 8px; /* 轨道总宽度 */
+    pointer-events: none; /* 确保不影响点击列表内容 */
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
-/* 鼠标移动到 card-list 区域时显示滚动条滑块 */
-.card-list:hover::-webkit-scrollbar-thumb {
+/* 整个侧边栏悬停时，滚动条淡入 */
+.sidebar:hover .custom-scrollbar {
+    opacity: 1;
+}
+
+/* 自定义滚动条滑块 (绝对定位实现) */
+.custom-scrollbar-thumb {
+    position: absolute;
+    right: 4px; /* 距离边缘 4px */
+    width: 4px; /* 滑块宽度 4px */
     background-color: #383838;
+    border-radius: 4px;
+    top: 0;
+    height: 0; /* 高度将由 JS 动态计算 */
+    transition: background-color 0.2s;
 }
 
-/* 滑块悬停时稍微加深或保持（可选） */
-.card-list::-webkit-scrollbar-thumb:hover {
+.custom-scrollbar-thumb:hover {
     background-color: #444444;
-}
-
-/* 隐藏滚动条轨道 */
-.card-list::-webkit-scrollbar-track {
-    background: transparent;
 }
 
 /* 列表项样式 */
