@@ -49,12 +49,10 @@ body {
 .btn-batch {
     width: 86px;
     height: 38px;
-    background-color: #2A50AC;
-    color: #FFFFFF;
+    background-color: #b8b8b8;
     border: none;
     border-radius: 6px;
     cursor: pointer;
-    font-weight: bold;
     font-size: 13px;
     display: flex;
     align-items: center;
@@ -91,10 +89,43 @@ body {
 .card-list {
     flex: 1;
     overflow-y: auto;
+    /* 使用 overlay 确保滚动条不占用空间（在 WebKit 浏览器中有效） */
+    overflow-y: overlay;
     padding: 15px;
     display: flex;
     flex-direction: column;
     gap: 12px;
+}
+
+/* 自定义滚动条整体样式 */
+.card-list::-webkit-scrollbar {
+    width: 8px;
+    /* 4px 滚动条宽度 + 4px 右边距 = 8px 总宽度 */
+}
+
+/* 自定义滚动条滑块 (Thumb) */
+.card-list::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    /* 初始透明 */
+    border-radius: 4px;
+    background-clip: padding-box;
+    /* 通过透明边框实现右对齐 4px 的边距效果 */
+    border-right: 4px solid transparent;
+}
+
+/* 鼠标移动到 card-list 区域时显示滚动条滑块 */
+.card-list:hover::-webkit-scrollbar-thumb {
+    background-color: #383838;
+}
+
+/* 滑块悬停时稍微加深或保持（可选） */
+.card-list::-webkit-scrollbar-thumb:hover {
+    background-color: #444444;
+}
+
+/* 隐藏滚动条轨道 */
+.card-list::-webkit-scrollbar-track {
+    background: transparent;
 }
 
 /* 列表项样式 */
@@ -345,7 +376,7 @@ body {
 .tool-btn {
     cursor: pointer;
     color: white;
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.8);
     width: 24px;
     height: 24px;
     display: flex;
