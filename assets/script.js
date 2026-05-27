@@ -8,6 +8,8 @@ let cardList = [
         title: DEFAULT_TITLE,
         mbti: '(e人)',
         avatar: '', // Base64 或 Blob URL
+        avatarWidth: 0,
+        avatarHeight: 0,
         scale: 1,
         x: 0,
         y: 0
@@ -160,6 +162,8 @@ addCardBtn.onclick = () => {
         title: DEFAULT_TITLE,
         mbti: '(e人)',
         avatar: '',
+        avatarWidth: 0,
+        avatarHeight: 0,
         scale: 1,
         x: 0,
         y: 0
@@ -197,15 +201,67 @@ function updatePreview() {
     titleTextEl.innerText = card.title;
     mbtiTextEl.innerText = card.mbti;
     
-    // 图片设置
-    if (card.avatar) {
-        avatarImageEl.style.backgroundImage = `url(${card.avatar})`;
-    } else {
-        avatarImageEl.style.backgroundImage = `url('https://via.placeholder.com/246x246.png?text=Click+to+Upload')`;
+    applyAvatarToPreview(card);
+}
+
+function getAvatarBaseSize(card) {
+    const frameSize = 246;
+    const imageWidth = card.avatarWidth || frameSize;
+    const imageHeight = card.avatarHeight || frameSize;
+    const imageRatio = imageWidth / imageHeight;
+
+    if (imageRatio >= 1) {
+        return {
+            width: frameSize * imageRatio,
+            height: frameSize
+        };
     }
-    
-    // 恢复坐标和缩放
-    avatarImageEl.style.transform = `scale(${card.scale}) translate(${card.x}px, ${card.y}px)`;
+
+    return {
+        width: frameSize,
+        height: frameSize / imageRatio
+    };
+}
+
+function clampAvatarOffset(card) {
+    const frameSize = 246;
+    const baseSize = getAvatarBaseSize(card);
+    const displayWidth = baseSize.width * card.scale;
+    const displayHeight = baseSize.height * card.scale;
+    const maxX = Math.max(0, (displayWidth - frameSize) / 2);
+    const maxY = Math.max(0, (displayHeight - frameSize) / 2);
+
+    card.x = Math.max(-maxX, Math.min(maxX, card.x));
+    card.y = Math.max(-maxY, Math.min(maxY, card.y));
+}
+
+function applyAvatarToPreview(card) {
+    const placeholder = 'https://via.placeholder.com/246x246.png?text=Click+to+Upload';
+    const src = card.avatar || placeholder;
+    const baseSize = getAvatarBaseSize(card);
+
+    clampAvatarOffset(card);
+    avatarImageEl.src = src;
+    avatarImageEl.style.width = `${baseSize.width * card.scale}px`;
+    avatarImageEl.style.height = `${baseSize.height * card.scale}px`;
+    avatarImageEl.style.left = `calc(50% + ${card.x}px)`;
+    avatarImageEl.style.top = `calc(50% + ${card.y}px)`;
+}
+
+function loadImageDimensions(src) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            resolve({
+                width: img.naturalWidth || 246,
+                height: img.naturalHeight || 246
+            });
+        };
+        img.onerror = () => {
+            resolve({ width: 246, height: 246 });
+        };
+        img.src = src;
+    });
 }
 
 // ================= 双向绑定 logic =================
@@ -317,6 +373,12 @@ window.setMbti = (type, targetIndex = activeIndex) => {
 
 // 1. 上传逻辑：排除文字点击，防止干扰编辑
 photoWrap.onclick = (e) => {
+    if (didDragAvatar) {
+        didDragAvatar = false;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+    }
     if (e.target !== photoWrap && e.target.id !== 'avatarImage') return;
     imageInput.click();
 };
@@ -325,9 +387,12 @@ imageInput.onchange = (e) => {
     const file = e.target.files[0];
     if (file) {
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
             const dataUrl = event.target.result;
+            const dimensions = await loadImageDimensions(dataUrl);
             cardList[activeIndex].avatar = dataUrl;
+            cardList[activeIndex].avatarWidth = dimensions.width;
+            cardList[activeIndex].avatarHeight = dimensions.height;
             cardList[activeIndex].scale = 1;
             cardList[activeIndex].x = 0;
             cardList[activeIndex].y = 0;
@@ -343,17 +408,20 @@ window.zoomImage = (delta) => {
     card.scale += delta;
     if (card.scale < 1) card.scale = 1;
     if (card.scale > 3) card.scale = 3;
+    clampAvatarOffset(card);
     updatePreview();
 };
 
 // 3. 拖拽 (带边界限制)
 let isDragging = false;
+let didDragAvatar = false;
 let startX, startY, initX, initY;
 
 photoWrap.onmousedown = (e) => {
     if (e.target.closest('.tool-btn')) return;
     const card = cardList[activeIndex];
     isDragging = true;
+    didDragAvatar = false;
     startX = e.clientX;
     startY = e.clientY;
     initX = card.x;
@@ -364,13 +432,16 @@ photoWrap.onmousedown = (e) => {
 window.onmousemove = (e) => {
     if (!isDragging) return;
     const card = cardList[activeIndex];
-    const dx = (e.clientX - startX) / card.scale;
-    const dy = (e.clientY - startY) / card.scale;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+        didDragAvatar = true;
+    }
     
-    // 边界计算 (简易版)
-    const limit = 123 * (card.scale - 1) / card.scale;
-    card.x = Math.max(-limit, Math.min(limit, initX + dx));
-    card.y = Math.max(-limit, Math.min(limit, initY + dy));
+    card.x = initX + dx;
+    card.y = initY + dy;
+    clampAvatarOffset(card);
     
     updatePreview();
 };
@@ -427,7 +498,7 @@ async function nextFrame() {
 downloadAllBtn.onclick = async () => {
     // 1. 过滤掉未曾修改的默认数据 (名字未改或没传照片)
     const validCards = cardList.filter(c => 
-        c.name !== '叫啥名字' && c.avatar !== ''
+        c.name !== DEFAULT_NAME && c.avatar !== ''
     );
 
     if (validCards.length === 0) {
@@ -520,18 +591,38 @@ if (excelInput) {
             const jsonData = XLSX.utils.sheet_to_json(worksheet);
             
             // 2. 尝试提取图片 (需利用已引入的 JSZip)
-            const images = await extractImagesFromXlsx(data);
+            const imageBundle = await extractImagesFromXlsx(data);
+            const sequentialImages = [...imageBundle.list];
+            const hasCellImageMap = Object.keys(imageBundle.byId).length > 0;
+            let sequentialImageIndex = 0;
+            const dataRows = jsonData.filter(row => {
+                return getRowValue(row, ['名字', 'Name']) ||
+                    getRowValue(row, ['职位', 'Title']) ||
+                    getRowValue(row, ['性格', 'Personality']) ||
+                    getRowValue(row, ['头像', 'Avatar']);
+            });
             
             // 3. 处理每一行并映射数据
-            const newCards = jsonData.map((row, i) => {
+            const newCards = await Promise.all(dataRows.map(async (row, i) => {
                 // 表头匹配逻辑
-                const name = row['名字'] || row['Name'] || DEFAULT_NAME;
-                const title = row['职位'] || row['Title'] || DEFAULT_TITLE;
-                const personality = String(row['性格'] || row['Personality'] || '');
+                const name = getRowValue(row, ['名字', 'Name']) || DEFAULT_NAME;
+                const title = getRowValue(row, ['职位', 'Title']) || DEFAULT_TITLE;
+                const personality = String(getRowValue(row, ['性格', 'Personality']) || '');
                 const mbti = (personality.toLowerCase().includes('i')) ? '(i人)' : '(e人)';
                 
-                // 头像匹配 (图片通常按顺序在 xl/media 中)
-                const avatar = images[i] || ''; 
+                // 优先按 WPS/表格 DISPIMG 里的图片 ID 精确匹配，避免中间空头像导致后续错位。
+                const avatarId = extractDispImageId(getRowValue(row, ['头像', 'Avatar']));
+                let avatar = avatarId ? imageBundle.byId[avatarId] : '';
+
+                // 兼容普通 Excel 浮动图片：没有 DISPIMG ID 时才按顺序回退。
+                if (!avatar && !hasCellImageMap && sequentialImageIndex < sequentialImages.length) {
+                    avatar = sequentialImages[sequentialImageIndex];
+                    sequentialImageIndex += 1;
+                }
+
+                const dimensions = avatar
+                    ? await loadImageDimensions(avatar)
+                    : { width: 0, height: 0 };
 
                 return {
                     id: Date.now() + i,
@@ -539,11 +630,13 @@ if (excelInput) {
                     title,
                     mbti,
                     avatar,
+                    avatarWidth: dimensions.width,
+                    avatarHeight: dimensions.height,
                     scale: 1,
                     x: 0,
                     y: 0
                 };
-            });
+            }));
 
             // 4. 更新全局列表
             if (newCards.length > 0) {
@@ -577,7 +670,7 @@ async function extractImagesFromXlsx(data) {
     try {
         const zip = await JSZip.loadAsync(data);
         const mediaFolder = zip.folder("xl/media");
-        if (!mediaFolder) return [];
+        if (!mediaFolder) return { list: [], byId: {} };
 
         const imageFiles = [];
         mediaFolder.forEach((relativePath, file) => {
@@ -592,16 +685,87 @@ async function extractImagesFromXlsx(data) {
         });
 
         const base64Images = [];
+        const imagesByPath = {};
         for (const file of imageFiles) {
             const base64 = await file.async("base64");
             const ext = file.name.split('.').pop().toLowerCase();
-            base64Images.push(`data:image/${ext};base64,${base64}`);
+            const dataUrl = `data:${getImageMimeType(ext)};base64,${base64}`;
+            base64Images.push(dataUrl);
+            imagesByPath[normalizeXlsxPath(file.name)] = dataUrl;
+            imagesByPath[normalizeXlsxPath(`xl/media/${file.name.split('/').pop()}`)] = dataUrl;
         }
-        return base64Images;
+
+        const imagesById = await extractCellImageMap(zip, imagesByPath);
+        return {
+            list: base64Images,
+            byId: imagesById
+        };
     } catch (e) {
         console.warn("图片提取失败:", e);
-        return [];
+        return { list: [], byId: {} };
     }
+}
+
+async function extractCellImageMap(zip, imagesByPath) {
+    const cellImagesFile = zip.file("xl/cellimages.xml");
+    const relsFile = zip.file("xl/_rels/cellimages.xml.rels");
+    if (!cellImagesFile || !relsFile) return {};
+
+    const parser = new DOMParser();
+    const cellImagesXml = parser.parseFromString(await cellImagesFile.async("text"), "application/xml");
+    const relsXml = parser.parseFromString(await relsFile.async("text"), "application/xml");
+    const relationships = {};
+    const relNodes = relsXml.getElementsByTagNameNS("*", "Relationship");
+
+    for (const rel of relNodes) {
+        const id = rel.getAttribute("Id");
+        const target = normalizeXlsxPath(`xl/${rel.getAttribute("Target") || ""}`);
+        if (id) relationships[id] = target;
+    }
+
+    const imagesById = {};
+    const imageNodes = cellImagesXml.getElementsByTagNameNS("*", "cellImage");
+
+    for (const imageNode of imageNodes) {
+        const propertyNode = imageNode.getElementsByTagNameNS("*", "cNvPr")[0];
+        const blipNode = imageNode.getElementsByTagNameNS("*", "blip")[0];
+        const imageId = propertyNode?.getAttribute("name");
+        const relId = blipNode?.getAttribute("r:embed") || blipNode?.getAttribute("embed");
+        const imagePath = relationships[relId];
+
+        if (imageId && imagePath && imagesByPath[imagePath]) {
+            imagesById[imageId] = imagesByPath[imagePath];
+        }
+    }
+
+    return imagesById;
+}
+
+function extractDispImageId(value) {
+    const match = String(value || '').match(/DISPIMG\("([^"]+)"/i);
+    return match ? match[1] : '';
+}
+
+function getRowValue(row, keys) {
+    for (const key of keys) {
+        const value = row[key];
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+            return value;
+        }
+    }
+    return '';
+}
+
+function normalizeXlsxPath(path) {
+    return String(path || '').replace(/^\/+/, '').replace(/^xl\/xl\//, 'xl/');
+}
+
+function getImageMimeType(ext) {
+    if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+    if (ext === 'png') return 'image/png';
+    if (ext === 'gif') return 'image/gif';
+    if (ext === 'webp') return 'image/webp';
+    return `image/${ext}`;
 }
 
 // 共通提示气泡
@@ -620,4 +784,3 @@ function showToast(message) {
         toast.remove();
     }, 3100); 
 }
-
